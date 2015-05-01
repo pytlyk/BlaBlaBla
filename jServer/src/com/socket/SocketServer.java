@@ -150,36 +150,76 @@ public class SocketServer implements Runnable {
 	return -1;
     }
 	
-   
- public boolean checkLogin(String username, String password){
-        
-        if(!userExists(username)){ return false; }
-        
-        try{
-            File fXmlFile = new File(filePath);
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(fXmlFile);
-            doc.getDocumentElement().normalize();
-            
-            NodeList nList = doc.getElementsByTagName("user");
-            
-            for (int temp = 0; temp < nList.getLength(); temp++) {
-                Node nNode = nList.item(temp);
-                if (nNode.getNodeType() == Node.ELEMENT_NODE) {
-                    Element eElement = (Element) nNode;
-                    if(getTagValue("username", eElement).equals(username) && getTagValue("password", eElement).equals(password)){
-                        return true;
+   public synchronized void handle(int ID, Message msg){  
+	if (msg.content.equals(".bye")){
+            Announce("signout", "SERVER", msg.sender);
+            remove(ID); 
+	}
+	else{
+            if(msg.type.equals("login")){
+                if(findUserThread(msg.sender) == null){
+                    if(db.checkLogin(msg.sender, msg.content)){
+                        clients[findClient(ID)].username = msg.sender;
+                        clients[findClient(ID)].send(new Message("login", "SERVER", "TRUE", msg.sender));
+                        Announce("newuser", "SERVER", msg.sender);
+                        SendUserList(msg.sender);
                     }
+                    else{
+                        clients[findClient(ID)].send(new Message("login", "SERVER", "FALSE", msg.sender));
+                    } 
+                }
+                else{
+                    clients[findClient(ID)].send(new Message("login", "SERVER", "FALSE", msg.sender));
                 }
             }
-            System.out.println("Hippie");
-            return false;
-        }
-        catch(Exception ex){
-            System.out.println("Database exception : userExists()");
-            return false;
-        }
+            else if(msg.type.equals("message")){
+                if(msg.recipient.equals("All")){
+                    Announce("message", msg.sender, msg.content);
+                }
+                else{
+                    findUserThread(msg.recipient).send(new Message(msg.type, msg.sender, msg.content, msg.recipient));
+                    clients[findClient(ID)].send(new Message(msg.type, msg.sender, msg.content, msg.recipient));
+                }
+            }
+            else if(msg.type.equals("test")){
+                clients[findClient(ID)].send(new Message("test", "SERVER", "OK", msg.sender));
+            }
+            else if(msg.type.equals("signup")){
+                if(findUserThread(msg.sender) == null){
+                    if(!db.userExists(msg.sender)){
+                        db.addUser(msg.sender, msg.content);
+                        clients[findClient(ID)].username = msg.sender;
+                        clients[findClient(ID)].send(new Message("signup", "SERVER", "TRUE", msg.sender));
+                        clients[findClient(ID)].send(new Message("login", "SERVER", "TRUE", msg.sender));
+                        Announce("newuser", "SERVER", msg.sender);
+                        SendUserList(msg.sender);
+                    }
+                    else{
+                        clients[findClient(ID)].send(new Message("signup", "SERVER", "FALSE", msg.sender));
+                    }
+                }
+                else{
+                    clients[findClient(ID)].send(new Message("signup", "SERVER", "FALSE", msg.sender));
+                }
+            }
+            else if(msg.type.equals("upload_req")){
+                if(msg.recipient.equals("All")){
+                    clients[findClient(ID)].send(new Message("message", "SERVER", "Uploading to 'All' forbidden", msg.sender));
+                }
+                else{
+                    findUserThread(msg.recipient).send(new Message("upload_req", msg.sender, msg.content, msg.recipient));
+                }
+            }
+            else if(msg.type.equals("upload_res")){
+                if(!msg.content.equals("NO")){
+                    String IP = findUserThread(msg.sender).socket.getInetAddress().getHostAddress();
+                    findUserThread(msg.recipient).send(new Message("upload_res", IP, msg.content, msg.recipient));
+                }
+                else{
+                    findUserThread(msg.recipient).send(new Message("upload_res", msg.sender, msg.content, msg.recipient));
+                }
+            }
+	}
     }
 
 
