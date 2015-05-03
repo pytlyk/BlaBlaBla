@@ -21,7 +21,7 @@ public class History {
     }
     
     public void addMessage(Message msg, String time){
-        
+     
         try {
             DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
@@ -49,8 +49,7 @@ public class History {
 		System.out.println("Exceptionmodify xml");
 	   }
 	}
-   
- 
+  
     
     public static String getTagValue(String sTag, Element eElement) {
 	NodeList nlList = eElement.getElementsByTagName(sTag).item(0).getChildNodes();
