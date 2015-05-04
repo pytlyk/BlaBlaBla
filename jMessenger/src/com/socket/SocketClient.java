@@ -114,7 +114,48 @@ public class SocketClient implements Runnable{
                 }
                 
 
-
+else if(msg.type.equals("upload_req")){
+                    
+                    if(JOptionPane.showConfirmDialog(ui, ("Accept '"+msg.content+"' from "+msg.sender+" ?")) == 0){
+                        
+                        JFileChooser jf = new JFileChooser();
+                        jf.setSelectedFile(new File(msg.content));
+                        int returnVal = jf.showSaveDialog(ui);
+                       
+                        String saveTo = jf.getSelectedFile().getPath();
+                        if(saveTo != null && returnVal == JFileChooser.APPROVE_OPTION){
+                            Download dwn = new Download(saveTo, ui);
+                            Thread t = new Thread(dwn);
+                            t.start();
+                            //send(new Message("upload_res", (""+InetAddress.getLocalHost().getHostAddress()), (""+dwn.port), msg.sender));
+                            send(new Message("upload_res", ui.username, (""+dwn.port), msg.sender));
+                        }
+                        else{
+                            send(new Message("upload_res", ui.username, "NO", msg.sender));
+                        }
+                    }
+                    else{
+                        send(new Message("upload_res", ui.username, "NO", msg.sender));
+                    }
+                }
+                else if(msg.type.equals("upload_res")){
+                    if(!msg.content.equals("NO")){
+                        int port  = Integer.parseInt(msg.content);
+                        String addr = msg.sender;
+                        
+                        ui.jButton5.setEnabled(false); ui.jButton6.setEnabled(false);
+                        Upload upl = new Upload(addr, port, ui.file, ui);
+                        Thread t = new Thread(upl);
+                        t.start();
+                    }
+                    else{
+                        ui.jTextArea1.append("[SERVER > Me] : "+msg.sender+" rejected file request\n");
+                    }
+                }
+                else{
+                    ui.jTextArea1.append("[SERVER > Me] : Unknown message type\n");
+                }
+            }
 
 
             catch(Exception ex) {
@@ -135,4 +176,28 @@ public class SocketClient implements Runnable{
         }
     }
     
+    public void send(Message msg){
+        try {
+            Out.writeObject(msg);
+            Out.flush();
+            System.out.println("Outgoing : "+msg.toString());
+            
+            if(msg.type.equals("message") && !msg.content.equals(".bye")){
+                String msgTime = (new Date()).toString();
+                try{
+                    hist.addMessage(msg, msgTime);               
+                    DefaultTableModel table = (DefaultTableModel) ui.historyFrame.jTable1.getModel();
+                    table.addRow(new Object[]{"Me", msg.content, msg.recipient, msgTime});
+                }
+                catch(Exception ex){}
+            }
+        } 
+        catch (IOException ex) {
+            System.out.println("Exception SocketClient send()");
+        }
+    }
     
+    public void closeThread(Thread t){
+        t = null;
+    }
+}
